@@ -205,8 +205,16 @@ int main(int argc, char **argv) {
        				perror("Error al enviar el missatge de verificació del login.");
        				return 1;
        			}
+       		} else {
+       			const char* msg = "1";
+       			ssize_t bytes_send_auth = send(cli, msg, strlen(msg), 0);
        		}
+       	} else {
+       		const char* msg = "1";
+       		ssize_t bytes_send_auth = send(cli, msg, strlen(msg), 0);
        	}
+       	
+       	
 
 
 

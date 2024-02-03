@@ -1,4 +1,4 @@
-// asdf
+
 // Client
 
 #define PORT 4432
@@ -62,7 +62,14 @@ int run(int sockfd) {
     
     buffer[bytes_rcv_auth] = '\0';
     
-    printf("%s\n", buffer);
+    if(strcmp(buffer, "0") != 0) {
+    	printf("Autenticació incorrecte.\n");
+    	return 0;
+    } else {
+    	printf("Auntenticació correcte.\n");
+    }
+    
+    printf("ho0la");
     
     
     
