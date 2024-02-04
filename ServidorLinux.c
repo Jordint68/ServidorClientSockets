@@ -10,10 +10,13 @@
 #include <sys/wait.h>
 #include <pthread.h>
 #include <sys/time.h> 
+#include <curl/curl.h>
 
-#define PORT 			4432
-#define MAX			10
+#define PORT 			    4432
+#define MAX			        10
 #define BUFFER_SIZE 		1024
+#define FILE_BUFFER_SIZE    1024
+#define MAX_STRING          256
 
 #define USUARI 			"jordint"
 #define CLAU			"passw0rd"
@@ -32,6 +35,26 @@ typedef struct {
 } t_client;
 
 pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
+
+void receive_file(int sockfd, const char *file_name) {
+    char file_buffer[FILE_BUFFER_SIZE];
+    FILE *file;
+
+    file = fopen(file_name, "wb");
+    if(file == NULL) {
+        perror("Error al obrir el arxiu a escriure");
+        return;
+    }
+
+    ssize_t bytes_received;
+
+    while((bytes_received = recv(sockfd, file_buffer, sizeof(file_buffer), 0)) > 0) {
+        fwrite(file_buffer, 1, bytes_received, file);
+    }
+
+    fclose(file);
+    printf("Arxiu rebut i desat com '%s'\n", file_name);
+}
 
 void *run(void *d) {
     t_client *client = (t_client *)d;
@@ -213,10 +236,6 @@ int main(int argc, char **argv) {
        		const char* msg = "1";
        		ssize_t bytes_send_auth = send(cli, msg, strlen(msg), 0);
        	}
-       	
-       	
-
-
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	
@@ -229,6 +248,20 @@ int main(int argc, char **argv) {
             clients[pos].fase = 0;
         }
         pthread_mutex_unlock(&mut);
+
+        // Rebre arxius
+        if(fork() == 0) {
+            close(sockfd);
+
+            char file_name[MAX_STRING];
+            ssize_t bytes_received_name = recv(cli, file_name, sizeof(file_name), 0);
+            if(bytes_received_name > 0) {
+                receive_file(cli, file_name);
+            }
+
+            close(cli);
+            return 0;
+        }
 
         if (pos == -1) {
             close(cli);

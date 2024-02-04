@@ -11,14 +11,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
+#include <curl/curl.h>
 
 #define MAXSTRING 100
-
-typedef struct {
-   int id;
-   char titol[16];
-   char autor[16];
-} t_llibre;
 
 int run(int sockfd) {
     int result = 0;
@@ -63,17 +59,49 @@ int run(int sockfd) {
     buffer[bytes_rcv_auth] = '\0';
     
     if(strcmp(buffer, "0") != 0) {
+        // Si l'autenticació és incorrecte, l'aplicació s'acaba.
     	printf("Autenticació incorrecte.\n");
     	return 0;
     } else {
     	printf("Auntenticació correcte.\n");
     }
-    
-    printf("ho0la");
-    
-    
-    
 
+    printf("Introdueix la ruta del arxiu que vols enviar: ");
+    scanf("%s", buffer);
+    const char *file_path = strdup(buffer);    
+
+    FILE *file = fopen(file_path, "rb");
+    if(file == NULL) {
+        perror("Error al obrir l'arxiu a enviar");
+        return 1;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    ssize_t bytes_sent_size = send(sockfd, &file_size, sizeof(file_size), 0);
+    if(bytes_sent_size == -1) {
+        perror("Error al enviar les dimensions del arxiu al servidor...");
+        fclose(file);
+        free((void *)file_path);
+        return 1;
+    }
+
+    ssize_t bytes_sent_file;
+    while((bytes_sent_file = fread(buffer, 1, sizeof(buffer), file)) > 0) {
+        if(send(sockfd, buffer, bytes_sent_file, 0) == -1) {
+            perror("Error al enviar l'arxiu al servidor");
+            fclose(file);
+            free((void *)file_path);
+            return 1;
+        }
+    }
+
+    fclose(file);
+    printf("Arxiu enviat correctament.\n");
+    
+    free((void *)file_path);
     free((void*)usuario);
     free((void*)clave);
 
