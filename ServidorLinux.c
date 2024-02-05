@@ -1,5 +1,3 @@
-// Server
-
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -12,15 +10,13 @@
 #include <sys/time.h> 
 #include <curl/curl.h>
 
-#define PORT 			    4432
-#define MAX			        10
-#define BUFFER_SIZE 		1024
-#define FILE_BUFFER_SIZE    1024
-#define MAX_STRING          256
-
-#define USUARI 			"jordint"
-#define CLAU			"passw0rd"
-
+#define PORT 4432
+#define MAX 10
+#define BUFFER_SIZE 1024
+#define FILE_BUFFER_SIZE 1024
+#define MAX_STRING 256
+#define USUARI "jordint"
+#define CLAU "passw0rd"
 
 typedef enum {
     lliure = 0,
@@ -39,21 +35,19 @@ pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 void receive_file(int sockfd, const char *file_name) {
     char file_buffer[FILE_BUFFER_SIZE];
     FILE *file;
-
     file = fopen(file_name, "wb");
-    if(file == NULL) {
+    if (file == NULL) {
         perror("Error al obrir el arxiu a escriure");
         return;
     }
 
     ssize_t bytes_received;
 
-    while((bytes_received = recv(sockfd, file_buffer, sizeof(file_buffer), 0)) > 0) {
+    while ((bytes_received = recv(sockfd, file_buffer, sizeof(file_buffer), 0)) > 0) {
         fwrite(file_buffer, 1, bytes_received, file);
     }
 
     fclose(file);
-    printf("Arxiu rebut i desat com '%s'\n", file_name);
 }
 
 void *run(void *d) {
@@ -110,8 +104,6 @@ void *run(void *d) {
                         if (FD_ISSET(cli, &wfds)) {
                             client[i].result = client[i].a + client[i].b;
                             m = write(cli, &(client[i].result), sizeof(int));
-
-                            // Tancar i alliberar
                             close(cli);
                             pthread_mutex_lock(&mut);
                             client[i].estat = lliure;
@@ -189,56 +181,45 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        /*
-            Gestionar la entrada de usuari i clau de pas per a permetre 
-            o no l'entrada al servidor.
-        */
-
         printf("Connexió establerta...\n");
         ssize_t bytes_received_usuari = recv(cli, buffer, sizeof(buffer), 0);
-        if(bytes_received_usuari == -1) {
+        if (bytes_received_usuari == -1) {
             perror("Error al rebre dades");
             return 1;
         }
 
-	const char* usuari_entrat = strdup(buffer);
+        const char *usuari_entrat = strdup(buffer);
 
         printf("Dades rebudes: %s\n", usuari_entrat);
         memset(buffer, '\0', sizeof(buffer));
-        
-        
+
         ssize_t bytes_received_clau = recv(cli, buffer, sizeof(buffer), 0);
-        if(bytes_received_clau == -1) {
+        if (bytes_received_clau == -1) {
             perror("Error al rebre dades");
             return 1;
         }
-        
+
         const char *clau_entrada = strdup(buffer);
         printf("Dades rebudes: %s\n", clau_entrada);
-        
+
         memset(buffer, '\0', sizeof(buffer));
 
-	// Validació del usuari i la clau de pas:
-	       
-       	if(strcmp(usuari_entrat, USUARI) == 0) {
-       		if(strcmp(clau_entrada, CLAU) == 0) {
-       			const char* msg = "0";
-       			ssize_t bytes_send_auth = send(cli, msg, strlen(msg), 0);
-       			if(bytes_send_auth == -1) {
-       				perror("Error al enviar el missatge de verificació del login.");
-       				return 1;
-       			}
-       		} else {
-       			const char* msg = "1";
-       			ssize_t bytes_send_auth = send(cli, msg, strlen(msg), 0);
-       		}
-       	} else {
-       		const char* msg = "1";
-       		ssize_t bytes_send_auth = send(cli, msg, strlen(msg), 0);
-       	}
-
-	////////////////////////////////////////////////////////////////////////////////////////
-	
+        if (strcmp(usuari_entrat, USUARI) == 0) {
+            if (strcmp(clau_entrada, CLAU) == 0) {
+                const char *msg = "0";
+                ssize_t bytes_send_auth = send(cli, msg, strlen(msg), 0);
+                if (bytes_send_auth == -1) {
+                    perror("Error al enviar el missatge de verificació del login.");
+                    return 1;
+                }
+            } else {
+                const char *msg = "1";
+                ssize_t bytes_send_auth = send(cli, msg, strlen(msg), 0);
+            }
+        } else {
+            const char *msg = "1";
+            ssize_t bytes_send_auth = send(cli, msg, strlen(msg), 0);
+        }
 
         pthread_mutex_lock(&mut);
         pos = get_lliure(clients);
@@ -249,14 +230,14 @@ int main(int argc, char **argv) {
         }
         pthread_mutex_unlock(&mut);
 
-        // Rebre arxius
-        if(fork() == 0) {
+        if (fork() == 0) {
             close(sockfd);
 
             char file_name[MAX_STRING];
             ssize_t bytes_received_name = recv(cli, file_name, sizeof(file_name), 0);
-            if(bytes_received_name > 0) {
+            if (bytes_received_name > 0) {
                 receive_file(cli, file_name);
+                printf("%s\n", file_name);
             }
 
             close(cli);
