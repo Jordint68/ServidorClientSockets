@@ -11,10 +11,15 @@
 #include <curl/curl.h>
 
 #define PORT 4432
+
 #define MAX 10
 #define BUFFER_SIZE 1024
 #define FILE_BUFFER_SIZE 1024
-#define MAX_STRING 256
+#define MAX_STRING 512
+#define MAX_BUFFER_SIZE 4096
+
+#define DIRECTORY "arxius_servidor"   
+
 #define USUARI "jordint"
 #define CLAU "passw0rd"
 
@@ -49,6 +54,46 @@ void receive_file(int sockfd, const char *file_name) {
 
     fclose(file);
 }
+
+void guardar_archivo(int cli) {
+    char file_name[MAX_STRING];
+    ssize_t bytes_received_name = recv(cli, file_name, sizeof(file_name), 0);
+
+    if (bytes_received_name > 0) {
+        printf("Nombre del archivo recibido: %s\n", file_name);
+
+        // Recibir el tamaño del archivo
+        ssize_t file_size;
+        ssize_t bytes_received_size = recv(cli, &file_size, sizeof(file_size), 0);
+        if (bytes_received_size != sizeof(file_size)) {
+            perror("Error al recibir el tamaño del archivo");
+            close(cli);
+            return;
+        }
+
+        // Crear un archivo en el servidor
+        FILE *received_file = fopen(file_name, "wb");
+        if (received_file == NULL) {
+            perror("Error al crear el archivo en el servidor");
+            close(cli);
+            return;
+        }
+
+        // Recibir y escribir los datos del archivo en el archivo creado
+        char buffer[MAX_BUFFER_SIZE];
+        ssize_t bytes_received_file;
+        while (file_size > 0 && (bytes_received_file = recv(cli, buffer, sizeof(buffer), 0)) > 0) {
+            fwrite(buffer, 1, bytes_received_file, received_file);
+            file_size -= bytes_received_file;
+        }
+
+        fclose(received_file);
+        printf("Archivo recibido y guardado correctamente en el servidor.\n");
+    }
+
+    close(cli);
+}
+
 
 void *run(void *d) {
     t_client *client = (t_client *)d;
@@ -232,17 +277,10 @@ int main(int argc, char **argv) {
 
         if (fork() == 0) {
             close(sockfd);
-
-            char file_name[MAX_STRING];
-            ssize_t bytes_received_name = recv(cli, file_name, sizeof(file_name), 0);
-            if (bytes_received_name > 0) {
-                receive_file(cli, file_name);
-                printf("%s\n", file_name);
-            }
-
-            close(cli);
+            guardar_archivo(cli);
             return 0;
-        }
+        }       
+
 
         if (pos == -1) {
             close(cli);

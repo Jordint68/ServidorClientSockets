@@ -70,14 +70,16 @@ int run(int sockfd) {
     long file_size = ftell(file);
     fseek(file, 0, SEEK_SET);
 
+
     ssize_t bytes_sent_size = send(sockfd, &file_size, sizeof(file_size), 0);
     if (bytes_sent_size == -1) {
-        perror("Error al enviar les dimensions del arxiu al servidor...");
+        perror("Error al enviar el nom del arxiu al servidor...");
         fclose(file);
         free((void *)file_path);
         return 1;
     }
 
+    // Enviament del arxiu al servidor
     ssize_t bytes_sent_file;
     while ((bytes_sent_file = fread(buffer, 1, sizeof(buffer), file)) > 0) {
         if (send(sockfd, buffer, bytes_sent_file, 0) == -1) {
